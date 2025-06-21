@@ -1,11 +1,10 @@
 # src/predict.py
-
+import matplotlib.pyplot as plt
 import torch
 from torchvision.datasets import Flowers102
 from torchvision.models import resnet18
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
-import matplotlib.pyplot as plt
 
 # Manually defined flower names list
 flower_names = [
@@ -48,18 +47,34 @@ model.to(device)
 model.eval()
 
 # Predict one image
-images, labels = next(iter(test_loader))
-image = images[0].to(device).unsqueeze(0)
-label = labels[0].item()
+# Predict one image (before the accuracy loop)
+single_images, single_labels = next(iter(test_loader))
+image = single_images[0].to(device).unsqueeze(0)
+label = single_labels[0].item()
 
 with torch.no_grad():
     outputs = model(image)
     _, predicted = torch.max(outputs, 1)
     predicted_class = predicted.item()
 
-# Show image
-import matplotlib.pyplot as plt
-plt.imshow(images[0].permute(1, 2, 0))  # CHW to HWC
+# Evaluate accuracy on the whole test set
+correct = 0
+total = 0
+test_loader_full = DataLoader(test_data, batch_size=1, shuffle=False)
+
+for images, labels in test_loader_full:
+    images, labels = images.to(device), labels.to(device)
+    with torch.no_grad():
+        outputs = model(images)
+        _, predicted = torch.max(outputs, 1)
+        correct += (predicted == labels).sum().item()
+        total += labels.size(0)
+
+accuracy = correct / total * 100
+print(f"✅ Test Accuracy: {accuracy:.2f}%")
+
+# Show single image prediction
+plt.imshow(single_images[0].cpu().permute(1, 2, 0))
 plt.title(f"Actual: {flower_names[label]}\nPredicted: {flower_names[predicted_class]}")
 plt.axis('off')
 plt.show()
